@@ -468,3 +468,45 @@ protected theorem lt_of_le_ne (x y : BitVec n) (h1 : x <= y) (h2 : ¬ x = y) : x
   let ⟨y, lt⟩ := y
   simp
   exact Nat.lt_of_le_of_ne
+
+/-- For 'x <= 2^w', 'x / 2^(w - 1)' is 0 if 'x < 2^w', 1 otherwise -/
+theorem Nat.div_two_pow_pred {w : Nat} (hx : x < 2 ^ w) :
+    x / 2 ^ (w - 1) = if 2 ^ (w - 1) <= x then 1 else 0 := by
+  by_cases (2 ^ (w - 1) ≤ x)
+  case pos h =>
+    simp [h]
+    rw [Nat.div_eq_sub_div, Nat.div_eq_of_lt]
+    · apply Nat.sub_lt_right_of_lt_add h
+      rw [← Nat.mul_two, ← Nat.pow_succ]
+      rcases w with rfl | w' <;> simp_all
+      · apply Nat.lt_trans hx Nat.one_lt_two
+    · apply Nat.lt_of_lt_of_le
+      apply Nat.zero_lt_one
+      apply Nat.two_pow_pos
+    · exact h
+  case neg h =>
+    simp only [h, ↓reduceIte]
+    exact Nat.div_eq_of_lt (Nat.not_le.mp h)
+
+/-- Describe `toInt` in terms of `toNat` -/
+theorem BitVec.toInt_eq (w : Nat) (x : BitVec w) :
+    BitVec.toInt x = if x.toNat < (2 : Nat)^(w - 1) then (Int.ofNat x.toNat) else (Int.ofNat x.toNat) - (Int.ofNat <| (2 : Nat)^(w : Nat)) := by
+  rcases w with rfl | w'
+  . simp only [Subsingleton.elim x 0, ofNat_eq_ofNat, Nat.zero_eq, toNat_ofNat, Nat.pow_zero,
+    Nat.zero_mod, Nat.lt_succ_self, ↓reduceIte, Int.Nat.cast_ofNat_Int]
+    rfl
+  . case succ =>
+    unfold BitVec.toInt BitVec.msb BitVec.getMsb BitVec.getLsb Nat.testBit
+    simp only [Nat.zero_lt_succ, decide_True, Nat.succ_sub_succ_eq_sub, Nat.sub_zero,
+      Nat.and_one_is_mod, Bool.true_and, bne_iff_ne, ne_eq, Int.ofNat_eq_coe, ite_not,
+      Nat.shiftRight_eq_div_pow]
+    have hdiv : (BitVec.toNat x) / 2 ^ w' = (BitVec.toNat x) / 2^(Nat.succ w' - 1) := by simp
+    rw [hdiv]
+    rw [Nat.div_two_pow_pred (by apply x.toFin.isLt), Nat.succ_sub_one]
+    cases (Nat.lt_or_ge (BitVec.toNat x) (2 ^ w'))
+    case inl hle =>
+      have hle' : ¬ (2 ^ w' ≤ BitVec.toNat x) := by simp [hle]
+      simp [hle, hle']
+    case inr hgt =>
+      have hgt' : ¬ (BitVec.toNat x < 2 ^ w') := by simp_all
+      simp only [hgt, ↓reduceIte, Nat.reduceMod, Nat.succ_ne_zero, hgt']
