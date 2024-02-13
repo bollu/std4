@@ -488,6 +488,8 @@ theorem Nat.div_two_pow_pred {w : Nat} (hx : x < 2 ^ w) :
     simp only [h, ↓reduceIte]
     exact Nat.div_eq_of_lt (Nat.not_le.mp h)
 
+  
+
 theorem msb_false_iff_lt_half {x : BitVec (Nat.succ w)}: 
     BitVec.msb x = false ↔ BitVec.toNat x < 2 ^ w := by
   constructor <;> intros h 
@@ -512,6 +514,18 @@ theorem msb_true_iff_geq_half {x : BitVec (Nat.succ w)}:
   · simp [BitVec.msb_false_iff_lt_half.mpr (by omega)] at h
   . have hcontra : BitVec.toNat x < 2^w  := BitVec.msb_false_iff_lt_half.mp (Bool.not_eq_true _ ▸ h')
     omega
+
+theorem msb_decide (x : BitVec (Nat.succ w)) : BitVec.msb x = decide (x.toNat ≥ 2^w) := by
+  simp [BitVec.msb, getMsb, getLsb, Nat.testBit]
+  rw [Nat.shiftRight_eq_div_pow]
+  rcases (Nat.lt_or_ge (BitVec.toNat x) (2 ^ w)) with h | h
+  · simp [Nat.div_eq_of_lt h, h]
+  · simp [h]
+    rw [Nat.div_eq_sub_div (Nat.two_pow_pos _) (by omega), Nat.div_eq_of_lt]
+    · decide
+    · have hxmax : BitVec.toNat x < 2^(Nat.succ w) := x.isLt
+      rw [Nat.pow_succ, Nat.mul_two] at hxmax
+      omega
 
 /-- Describe `toInt` in terms of `toNat` -/
 theorem BitVec.toInt_eq (w : Nat) (x : BitVec w) :
