@@ -383,3 +383,7 @@ example (i j : Nat) (p : i ≥ j) : True := by
 example (i : Fin 7) : (i : Nat) < 8 := by omega
 
 example (x y z i : Nat) (hz : z ≤ 1) : x % 2 ^ i + y % 2 ^ i + z < 2 * 2^ i := by omega
+
+example {w : Nat} (h : x  < 2^(Nat.succ w)) : x < 2^w + 2^w := by omega
+
+example {x w : Nat} (h : x  < 2^(Nat.succ w)) : x - 2^w < 2^w := by omega
