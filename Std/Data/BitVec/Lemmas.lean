@@ -499,3 +499,78 @@ protected theorem lt_of_le_ne (x y : BitVec n) (h1 : x <= y) (h2 : ¬ x = y) : x
   let ⟨y, lt⟩ := y
   simp
   exact Nat.lt_of_le_of_ne
+
+/-- For 'x <= 2^w', 'x / 2^(w - 1)' is 0 if 'x < 2^w', 1 otherwise -/
+theorem Nat.div_two_pow_pred {w : Nat} (hx : x < 2 ^ w) :
+    x / 2 ^ (w - 1) = if 2 ^ (w - 1) <= x then 1 else 0 := by
+  by_cases (2 ^ (w - 1) ≤ x)
+  case pos h =>
+    simp [h]
+    rw [Nat.div_eq_sub_div, Nat.div_eq_of_lt]
+    · apply Nat.sub_lt_right_of_lt_add h
+      rw [← Nat.mul_two, ← Nat.pow_succ]
+      rcases w with rfl | w' <;> simp_all
+      · apply Nat.lt_trans hx Nat.one_lt_two
+    · apply Nat.lt_of_lt_of_le
+      apply Nat.zero_lt_one
+      apply Nat.two_pow_pos
+    · exact h
+  case neg h =>
+    simp only [h, ↓reduceIte]
+    exact Nat.div_eq_of_lt (Nat.not_le.mp h)
+
+  
+
+theorem msb_false_iff_lt_half {x : BitVec (Nat.succ w)}: 
+    BitVec.msb x = false ↔ BitVec.toNat x < 2 ^ w := by
+  constructor <;> intros h 
+  · by_contra hxlarge
+    simp [BitVec.msb, getMsb, getLsb, Nat.testBit] at h -- non-terminal simp, what do?
+    rw [Nat.shiftRight_eq_div_pow] at h 
+    rw [Nat.div_eq_sub_div] at h
+    have hxmax : BitVec.toNat x < 2^(Nat.succ w) := x.isLt
+    rw [Nat.div_eq_of_lt] at h 
+    · contradiction
+    · rw [Nat.pow_succ, Nat.mul_two] at hxmax
+      omega
+    · apply Nat.two_pow_pos
+    · simp_all
+  · simp [BitVec.msb, getMsb, getLsb, Nat.testBit] -- non-terminal simp, what do?
+    rw [Nat.shiftRight_eq_div_pow, Nat.div_eq_of_lt h]
+    rfl
+
+theorem msb_true_iff_geq_half {x : BitVec (Nat.succ w)}: 
+    BitVec.msb x = true ↔ BitVec.toNat x ≥ 2 ^ w := by
+  constructor <;> intros h <;> by_contra h'
+  · simp [BitVec.msb_false_iff_lt_half.mpr (by omega)] at h
+  . have hcontra : BitVec.toNat x < 2^w  := BitVec.msb_false_iff_lt_half.mp (Bool.not_eq_true _ ▸ h')
+    omega
+
+theorem msb_decide (x : BitVec (Nat.succ w)) : BitVec.msb x = decide (x.toNat ≥ 2^w) := by
+  simp [BitVec.msb, getMsb, getLsb, Nat.testBit]
+  rw [Nat.shiftRight_eq_div_pow]
+  rcases (Nat.lt_or_ge (BitVec.toNat x) (2 ^ w)) with h | h
+  · simp [Nat.div_eq_of_lt h, h]
+  · simp [h]
+    rw [Nat.div_eq_sub_div (Nat.two_pow_pos _) (by omega), Nat.div_eq_of_lt]
+    · decide
+    · have hxmax : BitVec.toNat x < 2^(Nat.succ w) := x.isLt
+      rw [Nat.pow_succ, Nat.mul_two] at hxmax
+      omega
+
+/-- Describe `toInt` in terms of `toNat` -/
+theorem BitVec.toInt_eq (w : Nat) (x : BitVec w) :
+    BitVec.toInt x = if x.toNat < (2 : Nat)^(w - 1) then (Int.ofNat x.toNat) else (Int.ofNat x.toNat) - (Int.ofNat <| (2 : Nat)^(w : Nat)) := by
+  rcases w with rfl | w
+  . simp only [Subsingleton.elim x 0, ofNat_eq_ofNat, Nat.zero_eq, toNat_ofNat, Nat.pow_zero,
+    Nat.zero_mod, Nat.lt_succ_self, ↓reduceIte, Int.Nat.cast_ofNat_Int]
+    rfl
+  . case succ =>
+    simp
+    rcases (Nat.lt_or_ge (BitVec.toNat x) (2 ^ w)) with h | h
+    · simp [h, BitVec.toInt]
+      intros h'
+      simp [BitVec.msb_false_iff_lt_half.mpr h] at h'
+    · simp [Nat.not_lt_of_ge h, BitVec.toInt]
+      intros hmsb
+      simp [msb_true_iff_geq_half.mpr h] at hmsb
