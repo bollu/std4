@@ -287,11 +287,15 @@ theorem not_def {x : BitVec v} : ~~~x = allOnes v ^^^ x := rfl
 @[simp] theorem getLsb_not {x : BitVec v} : (~~~x).getLsb i = (decide (i < v) && ! x.getLsb i) := by
   by_cases h' : i < v <;> simp_all [not_def]
 
+
 /-! ### shiftLeft -/
 
 @[simp] theorem toNat_shiftLeft {x : BitVec v} :
     BitVec.toNat (x <<< n) = BitVec.toNat x <<< n % 2^v :=
   BitVec.toNat_ofNat _ _
+
+@[simp] theorem toFin_shiftLeft {n : Nat} (x : BitVec v) :
+    BitVec.toFin (x <<< n) = BitVec.toFin (BitVec.ofNat v (x.toNat <<< n)) := rfl
 
 @[simp] theorem getLsb_shiftLeft (x : BitVec m) (n) :
     getLsb (x <<< n) i = (decide (i < m) && !decide (i < n) && getLsb x (i - n)) := by
@@ -324,6 +328,14 @@ theorem shiftLeftZeroExtend_eq {x : BitVec w} :
 
 @[simp] theorem toNat_ushiftRight (x : BitVec n) (i : Nat) :
     (x >>> i).toNat = x.toNat >>> i := rfl
+
+@[simp] theorem toFin_ushiftRight (x : BitVec n) (i : Nat) :
+    (x >>> i).toFin = ⟨x.toNat >>> i, by
+      let ⟨x, lt⟩ := x
+      simp only [BitVec.toNat, Nat.shiftRight_eq_div_pow, Nat.div_lt_iff_lt_mul (Nat.two_pow_pos i)]
+      rw [←Nat.mul_one x]
+      exact Nat.mul_lt_mul_of_lt_of_le' lt (Nat.two_pow_pos i) (Nat.le_refl 1)⟩ := by
+  simp only [HShiftRight.hShiftRight, ushiftRight, BitVec.toFin]
 
 @[simp] theorem getLsb_ushiftRight (x : BitVec n) (i j : Nat) :
     getLsb (x >>> i) j = getLsb x (i+j) := by
@@ -499,3 +511,42 @@ protected theorem lt_of_le_ne (x y : BitVec n) (h1 : x <= y) (h2 : ¬ x = y) : x
   let ⟨y, lt⟩ := y
   simp
   exact Nat.lt_of_le_of_ne
+
+-- YESUPSTREAMABLE
+@[simp]
+theorem BitVec.ofInt_ofNat : BitVec.ofInt w (no_index (OfNat.ofNat n : Int)) = BitVec.ofNat w n := by
+  simp [BitVec.ofInt]
+
+-- YESUPSTREAMABLE.
+-- for completeness, also do the signed versions with `toInt` and the other unsigned versions.
+theorem BitVec.ult_ofNat (w : Nat) (x y : Nat)  :
+    (BitVec.ult (BitVec.ofNat w x) (BitVec.ofNat w y)) = decide (x % 2^w < y % 2^w) := by
+  simp [BitVec.ult]
+  constructor
+  · simp [BitVec.ofNat, BitVec.toFin, Fin.ofNat']
+  · intros h
+    simp only [BitVec.ofNat, Fin.ofNat', Fin.mk_lt_mk, h]
+
+-- UPSTREAMABLE
+/- Not a simp lemma by default because we may want toFin or toInt in the future. -/
+theorem BitVec.ult_toNat (x y : BitVec n) :
+    (BitVec.ult (n := n) x y) = decide (x.toNat < y.toNat) := by
+    have h : x = BitVec.ofNat n x.toNat := by simp
+    have h' : y = BitVec.ofNat n y.toNat := by simp
+    rw [h, h']
+    apply BitVec.ult_ofNat
+
+
+@[simp]
+theorem BitVec.ofBool_neq_1 (b : Bool) : BitVec.ofBool b ≠ (BitVec.ofNat 1 1) ↔ (BitVec.ofBool b) = (BitVec.ofNat 1 0) := by
+  constructor <;> (intros h; cases b <;> simp at h; simp [BitVec.ofBool])
+  · intros h
+    contradiction
+  · contradiction
+
+-- | MAYBEUPSTREAMABLE think if this is worth upstreaming
+@[simp]
+theorem BitVec.ofBool_neq_0 (b : Bool) : BitVec.ofBool b ≠ (BitVec.ofNat 1 0) ↔ (BitVec.ofBool b) = (BitVec.ofNat 1 1) := by
+  constructor <;> (intros h; cases b <;> simp at h <;> simp_all [BitVec.ofBool, h] <;> try contradiction)
+  · intros h
+    contradiction
