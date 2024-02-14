@@ -28,6 +28,9 @@ theorem pos_pow_of_pos (a : Int) (b : Nat) (h : 0 < a) : 0 < a ^ b := by
   rw [Int.eq_natAbs_of_zero_le (Int.le_of_lt h), ← Int.ofNat_zero, ← Int.ofNat_pow, Int.ofNat_lt]
   exact Nat.pos_pow_of_pos _ (Int.natAbs_pos.mpr (Int.ne_of_gt h))
 
+theorem two_pow_succ_eq_add (w) : 2^(Nat.succ w) = 2^w + 2^w := by 
+  rw [Nat.pow_succ, Nat.mul_two]
+
 theorem ofNat_pos {a : Nat} : 0 < (a : Int) ↔ 0 < a := by
   rw [← Int.ofNat_zero, Int.ofNat_lt]
 

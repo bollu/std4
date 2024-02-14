@@ -129,6 +129,15 @@ def analyzeAtom (e : Expr) : OmegaM (HashSet Expr) := do
   | (``Nat.cast, #[.const ``Int [], _, e']) =>
     -- Casts of natural numbers are non-negative.
     let mut r := {Expr.app (.const ``Int.ofNat_nonneg []) e'}
+    match e'.getAppFnArgs with
+    | (``HPow.hPow, #[_, _, _, _, b, exp]) =>
+      match b == toExpr (2 : Nat), exp.getAppFnArgs with
+      | true, (``Nat.succ, #[n]) =>
+        -- 2^(Nat.succ n) = 2^n + 2^n
+        r := r.insert (mkApp (.const ``Int.two_pow_succ_eq_add []) n)
+        pure ()
+      | _, _ => pure ()
+    | _ => pure ()
     match (← cfg).splitNatSub, e'.getAppFnArgs with
       | true, (``HSub.hSub, #[_, _, _, _, a, b]) =>
         -- `((a - b : Nat) : Int)` gives a dichotomy
